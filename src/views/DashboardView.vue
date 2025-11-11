@@ -1,9 +1,10 @@
 <template>
-  <div class="dashboard">
+  <!-- CORRECTION 1: Ajout de v-if="currentUser" sur la div principale -->
+  <div class="dashboard" v-if="currentUser">
     <div class="dashboard-header">
       <div class="welcome-section">
         <h1>Tableau de bord</h1>
-        <div v-if="currentUser">
+        <!-- CORRECTION 2: Suppression de la div v-if="currentUser" redondante, accès direct à currentUser -->
         <p class="welcome-message">Bon retour, <strong>{{ currentUser.email }}</strong> !</p>
         <p class="welcome-subtitle" v-if="currentUser.role === 'FREELANCE'">
           Prêt à trouver votre prochaine mission ?
@@ -11,7 +12,6 @@
         <p class="welcome-subtitle" v-else>
           Trouvez le talent parfait pour votre projet.
         </p>
-        </div>
       </div>
       <div class="header-actions">
         <router-link 
@@ -221,6 +221,11 @@
       </div>
     </div>
   </div>
+  
+  <!-- CORRECTION 3: Ajout d'un message de chargement si currentUser est null -->
+  <div v-else class="loading-container">
+    <p>Chargement...</p>
+  </div>
 </template>
 
 <script>
@@ -321,20 +326,31 @@ export default {
       ]
     };
   },
+  // CORRECTION 4: Ajout de mounted() pour rediriger vers login si pas d'utilisateur
+  mounted() {
+    if (!this.currentUser) {
+      this.$router.push('/');
+    }
+  },
+  // CORRECTION 5: Ajout de watch pour surveiller les changements de currentUser
+  watch: {
+    currentUser(newVal) {
+      if (!newVal) {
+        this.$router.push('/');
+      }
+    }
+  },
   methods: {
     applyToMission(missionId) {
       console.log('Postulation à la mission:', missionId);
-      // Implémenter la logique de postulation
       alert(`Candidature envoyée pour la mission #${missionId}`);
     },
     viewMission(missionId) {
       console.log('Voir mission:', missionId);
-      // Navigation vers les détails de la mission
       this.$router.push(`/missions/${missionId}`);
     },
     manageProposals(missionId) {
       console.log('Gérer propositions:', missionId);
-      // Navigation vers la gestion des propositions
     }
   }
 };
