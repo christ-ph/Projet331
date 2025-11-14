@@ -145,7 +145,7 @@
         <!-- Missions -->
         <div class="missions-grid">
           <div 
-            v-for="mission in sortedMissions" 
+            v-for="mission in paginatedMissions" 
             :key="mission.id" 
             class="mission-card"
             :class="{ featured: mission.featured }"
@@ -166,7 +166,7 @@
               </div>
               <div class="mission-budget">
                 <span class="budget-amount">{{ mission.budget }}€</span>
-                <span class="budget-type">{{ mission.budgetType }}</span>
+                <span class="budget-type">{{ mission.budget_type || mission.budgetType }}</span>
               </div>
             </div>
 
@@ -174,26 +174,32 @@
 
             <div class="mission-skills">
               <span 
-                v-for="skill in mission.skills.slice(0, 4)" 
+                v-for="skill in (mission.required_skills || []).slice(0, 4)" 
                 :key="skill" 
                 class="skill-tag"
               >
                 {{ skill }}
               </span>
-              <span v-if="mission.skills.length > 4" class="more-skills">
-                +{{ mission.skills.length - 4 }}
+              <span v-if="mission.required_skills && mission.required_skills.length > 4" class="more-skills">
+                +{{ mission.required_skills.length - 4 }}
               </span>
             </div>
 
             <div class="mission-footer">
               <div class="mission-client">
                 <div class="client-avatar">
-                  {{ mission.client.name.charAt(0) }}
+                  {{ mission.client?.name?.charAt(0) || 'C' }}
                 </div>
                 <div class="client-info">
-                  <span class="client-name">{{ mission.client.name }}</span>
+                  <span class="client-name">
+  {{ 
+    mission.client?.company_name 
+      ? mission.client.company_name + ' • ' + (mission.client.name || '') 
+      : mission.client?.name || 'Client' 
+  }}
+</span>
                   <span class="client-rating">
-                    ⭐ {{ mission.client.rating }} ({{ mission.client.reviews }} avis)
+                    ⭐ {{ mission.client?.rating || 0 }} ({{ mission.client?.reviews || 0 }} avis)
                   </span>
                 </div>
               </div>
@@ -218,7 +224,7 @@
             <div class="mission-timeline">
               <span class="post-date">📅 Publiée {{ mission.postedDate }}</span>
               <span class="deadline">⏱️ Échéance: {{ mission.deadline }}</span>
-              <span class="proposals">📨 {{ mission.proposalsCount }} propositions</span>
+              <span class="proposals">📨 {{ mission.proposalsCount || 0 }} propositions</span>
             </div>
           </div>
         </div>
@@ -325,6 +331,8 @@
 </template>
 
 <script>
+import { getMissions, applyToMission } from '@/services/api'; // Assure-toi que le chemin est correct
+
 export default {
   name: 'MissionsView',
   props: ['currentUser'],
@@ -335,126 +343,25 @@ export default {
       sortBy: 'newest',
       currentPage: 1,
       itemsPerPage: 6,
-      
-      filters: {
-        minBudget: null,
-        maxBudget: null,
-        skills: [],
-        types: []
-      },
-      
+      filters: { minBudget: null, maxBudget: null, skills: [], types: [] },
       skillFilter: '',
       showApplicationModal: false,
       selectedMission: null,
-      
-      application: {
-        proposal: '',
-        proposedBudget: null,
-        deliveryTime: ''
-      },
-      
+      application: { proposal: '', proposedBudget: null, deliveryTime: '' },
       quickFilters: [
         { id: 'urgent', label: '🔴 Urgent' },
         { id: 'featured', label: '⭐ Recommandé' },
         { id: 'budget_high', label: '💰 Budget élevé' },
         { id: 'new', label: '🆕 Nouveau' }
       ],
-      
       allSkills: [
         'React', 'Vue.js', 'Node.js', 'Python', 'JavaScript', 'TypeScript',
         'UI/UX Design', 'Figma', 'Adobe XD', 'PHP', 'Laravel', 'Symfony',
         'WordPress', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'React Native',
         'Flutter', 'Swift', 'Kotlin', 'Java', 'C#', '.NET'
       ],
-      
-      missions: [
-        {
-          id: 1,
-          title: "Développement Application React Native",
-          description: "Création d'une application mobile de gestion de tâches avec backend Node.js et base de données MongoDB. L'application doit inclure une authentification utilisateur, un système de notifications push et une interface responsive.",
-          budget: 3000,
-          budgetType: "Forfait",
-          type: "FREELANCE",
-          duration: "3-4 semaines",
-          skills: ["React Native", "Node.js", "MongoDB", "API REST", "JavaScript"],
-          client: {
-            name: "TechStart Inc.",
-            rating: 4.8,
-            reviews: 24
-          },
-          postedDate: "il y a 2 jours",
-          deadline: "15 décembre 2024",
-          proposalsCount: 8,
-          featured: true,
-          hasApplied: false
-        },
-        {
-          id: 2,
-          title: "Design Site E-commerce Modern",
-          description: "Refonte complète de l'interface utilisateur et expérience client pour une boutique en ligne. Création d'un design system cohérent et responsive.",
-          budget: 1500,
-          budgetType: "Forfait",
-          type: "FREELANCE",
-          duration: "2 semaines",
-          skills: ["UI/UX Design", "Figma", "Adobe XD", "Web Design", "Responsive"],
-          client: {
-            name: "FashionStore",
-            rating: 4.5,
-            reviews: 12
-          },
-          postedDate: "il y a 5 jours",
-          deadline: "10 décembre 2024",
-          proposalsCount: 15,
-          featured: false,
-          hasApplied: true
-        },
-        {
-          id: 3,
-          title: "API REST avec Python Flask",
-          description: "Développement d'une API REST sécurisée avec authentification JWT, documentation Swagger et tests unitaires. Intégration avec base de données PostgreSQL.",
-          budget: 45,
-          budgetType: "Heure",
-          type: "PART_TIME",
-          duration: "1 mois",
-          skills: ["Python", "Flask", "JWT", "Swagger", "PostgreSQL", "Docker"],
-          client: {
-            name: "DataCorp",
-            rating: 4.9,
-            reviews: 36
-          },
-          postedDate: "il y a 1 jour",
-          deadline: "20 décembre 2024",
-          proposalsCount: 5,
-          featured: true,
-          hasApplied: false
-        },
-        {
-          id: 4,
-          title: "Application de Gestion de Projet",
-          description: "Développement d'une application web de gestion de projet avec Vue.js et Laravel. Fonctionnalités : tableaux Kanban, gestion des tâches, time tracking.",
-          budget: 5000,
-          budgetType: "Forfait",
-          type: "FULL_TIME",
-          duration: "2 mois",
-          skills: ["Vue.js", "Laravel", "MySQL", "Tailwind CSS", "API REST"],
-          client: {
-            name: "ProjectSoft",
-            rating: 4.7,
-            reviews: 18
-          },
-          postedDate: "il y a 3 jours",
-          deadline: "15 janvier 2025",
-          proposalsCount: 12,
-          featured: false,
-          hasApplied: false
-        }
-      ],
-      
-      userStats: {
-        applicationsSent: 8,
-        interviews: 3,
-        successRate: 75
-      }
+      missions: [],
+      userStats: { applicationsSent: 0, interviews: 0, successRate: 0 }
     };
   },
   computed: {
@@ -463,193 +370,84 @@ export default {
         skill.toLowerCase().includes(this.skillFilter.toLowerCase())
       );
     },
-    
     filteredMissions() {
       return this.missions.filter(mission => {
-        // Filtre de recherche
         if (this.searchQuery && !mission.title.toLowerCase().includes(this.searchQuery.toLowerCase()) &&
             !mission.description.toLowerCase().includes(this.searchQuery.toLowerCase()) &&
-            !mission.skills.some(skill => skill.toLowerCase().includes(this.searchQuery.toLowerCase()))) {
+            !mission.required_skills?.some(skill => skill.toLowerCase().includes(this.searchQuery.toLowerCase()))) {
           return false;
         }
-        
-        // Filtre par budget
         if (this.filters.minBudget && mission.budget < this.filters.minBudget) return false;
         if (this.filters.maxBudget && mission.budget > this.filters.maxBudget) return false;
-        
-        // Filtre par compétences
-        if (this.filters.skills.length > 0 && 
-            !this.filters.skills.some(skill => mission.skills.includes(skill))) {
-          return false;
-        }
-        
-        // Filtre par type
-        if (this.filters.types.length > 0 && !this.filters.types.includes(mission.type)) {
-          return false;
-        }
-        
-        // Filtres rapides
+        if (this.filters.skills.length > 0 && !this.filters.skills.some(skill => mission.required_skills?.includes(skill))) return false;
+        if (this.filters.types.length > 0 && !this.filters.types.includes(mission.type)) return false;
+
         if (this.activeQuickFilter === 'featured' && !mission.featured) return false;
-        if (this.activeQuickFilter === 'urgent') {
-          const daysLeft = this.getDaysLeft(mission.deadline);
-          if (daysLeft > 7) return false;
-        }
+        if (this.activeQuickFilter === 'urgent' && this.getDaysLeft(mission.deadline) > 7) return false;
         if (this.activeQuickFilter === 'budget_high' && mission.budget < 2000) return false;
         if (this.activeQuickFilter === 'new') {
-          const isNew = mission.postedDate.includes('jour') && 
-                       parseInt(mission.postedDate) <= 2;
-          if (!isNew) return false;
+          const postedDays = mission.postedDate ? parseInt(mission.postedDate.split(' ')[0]) : 0;
+          if (postedDays > 2) return false;
         }
-        
         return true;
       });
     },
-    
     sortedMissions() {
       const missions = [...this.filteredMissions];
-      
       switch (this.sortBy) {
-        case 'budget_high':
-          return missions.sort((a, b) => b.budget - a.budget);
-        case 'budget_low':
-          return missions.sort((a, b) => a.budget - b.budget);
-        case 'deadline':
-          return missions.sort((a, b) => this.getDaysLeft(a.deadline) - this.getDaysLeft(b.deadline));
+        case 'budget_high': return missions.sort((a,b) => b.budget - a.budget);
+        case 'budget_low': return missions.sort((a,b) => a.budget - b.budget);
+        case 'deadline': return missions.sort((a,b) => this.getDaysLeft(a.deadline) - this.getDaysLeft(b.deadline));
         case 'newest':
-        default:
-          return missions.sort((a, b) => b.id - a.id);
+        default: return missions.sort((a,b) => b.id - a.id);
       }
     },
-    
     paginatedMissions() {
-      const start = (this.currentPage - 1) * this.itemsPerPage;
-      const end = start + this.itemsPerPage;
-      return this.sortedMissions.slice(start, end);
+      const start = (this.currentPage-1)*this.itemsPerPage;
+      return this.sortedMissions.slice(start, start+this.itemsPerPage);
     },
-    
-    totalPages() {
-      return Math.ceil(this.filteredMissions.length / this.itemsPerPage);
-    },
-    
+    totalPages() { return Math.ceil(this.filteredMissions.length/this.itemsPerPage); },
     visiblePages() {
       const pages = [];
-      const start = Math.max(1, this.currentPage - 2);
-      const end = Math.min(this.totalPages, start + 4);
-      
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
+      const start = Math.max(1,this.currentPage-2);
+      const end = Math.min(this.totalPages,start+4);
+      for(let i=start;i<=end;i++) pages.push(i);
       return pages;
     },
-    
-    isApplicationValid() {
-      return this.application.proposal.trim() && 
-             this.application.proposedBudget > 0 && 
-             this.application.deliveryTime.trim();
-    }
+    isApplicationValid() { return this.application.proposal.trim() && this.application.proposedBudget>0 && this.application.deliveryTime.trim(); }
   },
   methods: {
-    toggleQuickFilter(filterId) {
-      this.activeQuickFilter = this.activeQuickFilter === filterId ? null : filterId;
-      this.currentPage = 1;
+    async loadMissions() {
+      try {
+        const res = await getMissions();
+        this.missions = res.data.missions.map(m => ({ ...m, hasApplied: false }));
+      } catch(e) { console.error('Erreur chargement missions:', e); }
     },
-    
-    resetFilters() {
-      this.searchQuery = '';
-      this.activeQuickFilter = null;
-      this.filters = {
-        minBudget: null,
-        maxBudget: null,
-        skills: [],
-        types: []
-      };
-      this.currentPage = 1;
+    toggleQuickFilter(id){ this.activeQuickFilter = this.activeQuickFilter===id?null:id; this.currentPage=1; },
+    resetFilters(){ this.searchQuery=''; this.activeQuickFilter=null; this.filters={minBudget:null,maxBudget:null,skills:[],types:[]}; this.currentPage=1; },
+    getTypeLabel(type){ const labels={FULL_TIME:'Temps plein',PART_TIME:'Temps partiel',FREELANCE:'Freelance'}; return labels[type]||type; },
+    getDaysLeft(deadline){ if(!deadline) return 0; const diff=new Date(deadline)-new Date(); return Math.ceil(diff/(1000*60*60*24)); },
+    viewMission(id){ console.log('Voir mission:',id); },
+    applyToMission(mission){ this.selectedMission=mission; this.application.proposedBudget=mission.budget; this.showApplicationModal=true; },
+    closeModal(){ this.showApplicationModal=false; this.selectedMission=null; this.application={proposal:'',proposedBudget:null,deliveryTime:''}; },
+    async submitApplication(){
+      if(!this.isApplicationValid) return;
+      try{
+        await applyToMission(this.selectedMission.id,this.application);
+        const idx=this.missions.findIndex(m=>m.id===this.selectedMission.id);
+        if(idx!==-1) this.missions[idx].hasApplied=true;
+        alert('✅ Candidature envoyée avec succès !');
+        this.closeModal();
+      }catch(e){ console.error('Erreur candidature:',e); alert('❌ Impossible de postuler'); }
     },
-    
-    getTypeLabel(type) {
-      const labels = {
-        FULL_TIME: 'Temps plein',
-        PART_TIME: 'Temps partiel',
-        FREELANCE: 'Freelance'
-      };
-      return labels[type] || type;
-    },
-    
-    getDaysLeft(deadline) {
-      // Simulation simple - en réalité, il faudrait parser la date
-      return Math.floor(Math.random() * 30) + 1;
-    },
-    
-    viewMission(missionId) {
-      console.log('Voir mission:', missionId);
-      // Navigation vers les détails de la mission
-    },
-    
-    applyToMission(mission) {
-      this.selectedMission = mission;
-      this.application.proposedBudget = mission.budget;
-      this.showApplicationModal = true;
-    },
-    
-    closeModal() {
-      this.showApplicationModal = false;
-      this.selectedMission = null;
-      this.application = {
-        proposal: '',
-        proposedBudget: null,
-        deliveryTime: ''
-      };
-    },
-    
-    submitApplication() {
-      if (!this.isApplicationValid) return;
-      
-      console.log('Candidature envoyée:', {
-        mission: this.selectedMission,
-        application: this.application
-      });
-      
-      // Marquer la mission comme postulée
-      const missionIndex = this.missions.findIndex(m => m.id === this.selectedMission.id);
-      if (missionIndex !== -1) {
-        this.missions[missionIndex].hasApplied = true;
-      }
-      
-      this.userStats.applicationsSent++;
-      alert('✅ Candidature envoyée avec succès !');
-      this.closeModal();
-    },
-    
-    prevPage() {
-      if (this.currentPage > 1) this.currentPage--;
-    },
-    
-    nextPage() {
-      if (this.currentPage < this.totalPages) this.currentPage++;
-    },
-    
-    goToPage(page) {
-      this.currentPage = page;
-    }
+    prevPage(){ if(this.currentPage>1) this.currentPage--; },
+    nextPage(){ if(this.currentPage<this.totalPages) this.currentPage++; },
+    goToPage(page){ this.currentPage=page; }
   },
-  watch: {
-    filters: {
-      handler() {
-        this.currentPage = 1;
-      },
-      deep: true
-    },
-    
-    searchQuery() {
-      this.currentPage = 1;
-    },
-    
-    sortBy() {
-      this.currentPage = 1;
-    }
-  }
+  mounted(){ this.loadMissions(); }
 };
 </script>
+
 
 <style scoped>
 .missions-page {

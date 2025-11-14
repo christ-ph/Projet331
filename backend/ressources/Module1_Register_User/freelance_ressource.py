@@ -2,6 +2,7 @@ from flask import Blueprint
 from controllers.Module1_Register_User.freelance_controller import FreelanceController
 from flask_restful import Resource, reqparse
 
+
 controller = FreelanceController()
 
 class FreelanceListResource(Resource):

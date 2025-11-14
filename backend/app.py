@@ -1,4 +1,4 @@
-# [file name]: app.py - CORRIGÉ
+# [file name]: app.py - VERSION CORRIGÉE COMPLÈTE
 from dotenv import load_dotenv
 import os
 from flask import Flask
@@ -6,6 +6,7 @@ from models.models import db
 from ressources.Module1_Register_User.freelance_ressource import *
 from ressources.Module1_Register_User.user_ressource import *
 from ressources.Module1_Register_User.ConnectionUserResource import *
+from  ressources.Module2_Client_Managment.mission_ressource import *
 from flask_restful import Api
 from flask_cors import CORS
 
@@ -30,16 +31,20 @@ api.add_resource(RegisterUserResource, '/api/register')
 api.add_resource(ConnectionUserResource, '/api/login')
 api.add_resource(SetUserProfileResource, '/api/users/<int:user_id>/profile')
 
-# Routes freelances - ✅ TOUTES avec le préfixe /api
+# Routes freelances
 api.add_resource(FreelanceListResource, '/api/profiles')
 api.add_resource(FreelanceResource, '/api/profiles/<int:user_id>')
-#api.add_resource(PortfolioResource, '/api/profiles/<int:profile_id>/portfolio')
-#api.add_resource(PortfolioItemResource, '/api/profiles/<int:profile_id>/portfolio')
 
 # Routes Portfolio
-api.add_resource(PortfolioListResource, '/api/profiles/<int:profile_id>/portfolio')              # GET all + POST
-api.add_resource(PortfolioItemResource, '/api/profiles/<int:profile_id>/portfolio/<int:item_id>') # GET one + PUT + DELETE
+api.add_resource(PortfolioListResource, '/api/profiles/<int:profile_id>/portfolio')
+api.add_resource(PortfolioItemResource, '/api/profiles/<int:profile_id>/portfolio/<int:item_id>')
 
+# Routes Missions - ✅ VERSION CORRIGÉE
+api.add_resource(MissionListResource, '/api/missions')
+api.add_resource(MissionResource, '/api/missions/<int:mission_id>')
+api.add_resource(ApplicationResource, '/api/missions/<int:mission_id>/apply')
+api.add_resource(UserMissionsResource, '/api/users/<int:user_id>/missions')
+api.add_resource(UserApplicationsResource, '/api/users/<int:user_id>/applications')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
