@@ -427,7 +427,7 @@ export default {
     resetFilters(){ this.searchQuery=''; this.activeQuickFilter=null; this.filters={minBudget:null,maxBudget:null,skills:[],types:[]}; this.currentPage=1; },
     getTypeLabel(type){ const labels={FULL_TIME:'Temps plein',PART_TIME:'Temps partiel',FREELANCE:'Freelance'}; return labels[type]||type; },
     getDaysLeft(deadline){ if(!deadline) return 0; const diff=new Date(deadline)-new Date(); return Math.ceil(diff/(1000*60*60*24)); },
-    viewMission(id){ console.log('Voir mission:',id); },
+    viewMission(id){ document.createElement('div') },
     applyToMission(mission){ this.selectedMission=mission; this.application.proposedBudget=mission.budget; this.showApplicationModal=true; },
     closeModal(){ this.showApplicationModal=false; this.selectedMission=null; this.application={proposal:'',proposedBudget:null,deliveryTime:''}; },
     async submitApplication(){
