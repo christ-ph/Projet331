@@ -1,412 +1,120 @@
 <template>
-  <div class="dashboard" v-if="currentUser">
-    <div class="dashboard-header">
-      <div class="welcome-section">
-        <h1>Tableau de bord</h1>
-        <p class="welcome-message">Bon retour, <strong>{{ currentUser.email }}</strong> !</p>
-        <p class="welcome-subtitle" v-if="currentUser.role === 'FREELANCE'">
-          Prêt à donner une nouvelle mission ? Client
-        </p>
-        <p class="welcome-subtitle" v-else>
-          Trouvez le talent parfait pour votre projet.
-        </p>
-      </div>
-      <div class="header-actions">
-        <router-link 
-          v-if="currentUser.role === 'FREELANCE'" 
-          to="/freelance-profile" 
-          class="btn btn-primary"
-        >
-          ✨ Compléter mon profil
-        </router-link>
-        <router-link to="/missions" class="btn btn-secondary">
-          📋 Voir les missions
-        </router-link>
-      </div>
-    </div>
-
-    <div class="dashboard-content">
-      <!-- Pour les freelances -->
-      <div v-if="currentUser.role === 'FREELANCE'" class="freelance-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card primary">
-            <div class="stat-icon">🚀</div>
-            <div class="stat-content">
-              <h3>Missions actives</h3>
-              <p class="stat-number">{{ stats.activeMissions }}</p>
-              <p class="stat-trend">+2 cette semaine</p>
-            </div>
-          </div>
-          
-          <div class="stat-card success">
-            <div class="stat-icon">💼</div>
-            <div class="stat-content">
-              <h3>Candidatures envoyées</h3>
-              <p class="stat-number">{{ stats.proposalsSent }}</p>
-              <p class="stat-trend">12 ce mois</p>
-            </div>
-          </div>
-          
-          <div class="stat-card warning">
-            <div class="stat-icon">⭐</div>
-            <div class="stat-content">
-              <h3>Note moyenne</h3>
-              <p class="stat-number">{{ stats.averageRating }}/5</p>
-              <p class="stat-trend">24 avis</p>
-            </div>
-          </div>
-          
-          <div class="stat-card info">
-            <div class="stat-icon">💰</div>
-            <div class="stat-content">
-              <h3>Revenus estimés</h3>
-              <p class="stat-number">{{ stats.estimatedEarnings }}€</p>
-              <p class="stat-trend">Ce mois</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="content-grid">
-          <div class="content-section">
-            <div class="section-header">
-              <h3>🎯 Offres recommandées</h3>
-              <router-link to="/missions" class="see-all">Tout voir</router-link>
-            </div>
-            <div class="offers-list">
-              <div v-for="offer in latestOffers" :key="offer.id" class="offer-card">
-                <div class="offer-header">
-                  <h4>{{ offer.title }}</h4>
-                  <span class="budget">{{ offer.budget }}€</span>
-                </div>
-                <p class="offer-description">{{ offer.description }}</p>
-                <div class="offer-meta">
-                  <span class="deadline">⏱️ {{ offer.deadline }}</span>
-                  <span class="skills">{{ offer.skills.join(', ') }}</span>
-                </div>
-                <div class="offer-actions">
-                  <button @click="viewMission(offer.id)" class="btn btn-secondary btn-small">
-                    Voir détails
-                  </button>
-                  <button @click="applyToMission(offer.id)" class="btn btn-primary btn-small">
-                    Postuler
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="see-more-container" v-if="clientMissions.length > 2">
-              <button @click="showAllMissions = !showAllMissions" class="btn btn-outline">
-                {{ showAllMissions ? '← Voir moins' : 'Voir plus de missions →' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="content-section">
-            <div class="section-header">
-              <h3>📈 Mes missions</h3>
-              <span class="badge">{{ recentMissions.length }}</span>
-            </div>
-            <div class="missions-list">
-              <div v-for="mission in recentMissions" :key="mission.id" class="mission-card">
-                <div class="mission-status" :class="mission.status"></div>
-                <div class="mission-content">
-                  <h4>{{ mission.title }}</h4>
-                  <p class="mission-client">Client: {{ mission.client }}</p>
-                  <div class="mission-progress">
-                    <div class="progress-bar">
-                      <div 
-                        class="progress-fill" 
-                        :style="{ width: mission.progress + '%' }"
-                      ></div>
-                    </div>
-                    <span class="progress-text">{{ mission.progress }}%</span>
-                  </div>
-                  <p class="mission-deadline">Échéance: {{ mission.deadline }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+  <div class="register-page">
+    <div class="register-container">
+      <div class="register-left">
+        <h1>Rejoignez notre communauté</h1>
+        <p>Inscrivez-vous pour découvrir des talents ou proposer vos services.</p>
+        <div class="illustration">
+          <div class="icon">🚀</div>
+          <p>Commencez votre aventure freelance</p>
         </div>
       </div>
 
-      <!-- Pour les clients -->
-      <div v-else-if="currentUser.role === 'CLIENT'" class="client-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card primary">
-            <div class="stat-icon">📊</div>
-            <div class="stat-content">
-              <h3>Missions publiées</h3>
-              <p class="stat-number">{{ stats.publishedMissions }}</p>
-              <p class="stat-trend">3 actives</p>
-            </div>
-          </div>
-          
-          <div class="stat-card success">
-            <div class="stat-icon">📨</div>
-            <div class="stat-content">
-              <h3>Propositions reçues</h3>
-              <p class="stat-number">{{ stats.proposalsReceived }}</p>
-              <p class="stat-trend">12 en attente</p>
-            </div>
-          </div>
-          
-          <div class="stat-card warning">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-content">
-              <h3>Missions actives</h3>
-              <p class="stat-number">{{ stats.activeMissions }}</p>
-              <p class="stat-trend">En cours</p>
-            </div>
-          </div>
-          
-          <div class="stat-card info">
-            <div class="stat-icon">✅</div>
-            <div class="stat-content">
-              <h3>Taux de réussite</h3>
-              <p class="stat-number">{{ stats.successRate }}%</p>
-              <p class="stat-trend">Projets terminés</p>
-            </div>
-          </div>
-        </div>
+      <div class="register-right">
+        <div class="register-card">
+          <h2>Créer un compte</h2>
+          <form @submit.prevent="register" class="register-form">
+            <div class="form-section">
+              <h3>Informations de connexion</h3>
+              <div class="form-group">
+                <label for="email">Email *</label>
+                <input 
+                  v-model="form.email" 
+                  type="email" 
+                  id="email"
+                  placeholder="votre@email.com" 
+                  required 
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="password">Mot de passe *</label>
+                <input 
+                  v-model="form.password" 
+                  type="password" 
+                  id="password"
+                  placeholder="Minimum 6 caractères" 
+                  required 
+                  minlength="6"
+                />
+              </div>
 
-        <div class="content-grid">
-          <div class="content-section">
-            <div class="section-header">
-              <h3>📋 Mes missions récentes</h3>
-              <router-link to="/missions?my=true" class="see-all">Gérer</router-link>
-            </div>
-            <div class="missions-list">
-              <div v-for="mission in displayedMissions" :key="mission.id" class="mission-card">
-                <div class="mission-status" :class="mission.status"></div>
-                <div class="mission-content">
-                  <h4>{{ mission.title }}</h4>
-                  <p class="mission-meta">
-                    <span class="proposals">📨 {{ mission.proposalsCount }} propositions</span>
-                    <span class="budget">💰 {{ mission.budget }}€</span>
-                  </p>
-                  <p class="mission-deadline">⏱️ {{ mission.deadline }}</p>
-                  <div class="mission-actions">
-                    <button @click="viewMission(mission.id)" class="btn btn-primary btn-small">
-                      Voir détails
-                    </button>
-                    <button @click="manageProposals(mission.id)" class="btn btn-secondary btn-small">
-                      Propositions
-                    </button>
-                  </div>
-                </div>
+              <div class="form-group">
+                <label for="role">Je suis *</label>
+                <select v-model="form.role" id="role" required>
+                  <option value="">Choisissez votre rôle</option>
+                  <option value="FREELANCE">Freelance</option>
+                  <option value="CLIENT">Client</option>
+                </select>
               </div>
             </div>
-          </div>
 
-          <div class="content-section">
-            <div class="section-header">
-              <h3>👥 Freelances recommandés</h3>
-              <router-link to="/profiles" class="see-all">Explorer</router-link>
-            </div>
-            <div class="freelancers-list">
-              <div v-for="freelancer in recommendedFreelancers" :key="freelancer.id" class="freelancer-card">
-                <div class="freelancer-avatar">
-                  {{ freelancer.name.charAt(0) }}
+            <div class="form-section" v-if="form.role">
+              <h3>Informations personnelles</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="first_name">Prénom</label>
+                  <input 
+                    v-model="form.first_name" 
+                    id="first_name"
+                    placeholder="Votre prénom" 
+                  />
                 </div>
-                <div class="freelancer-info">
-                  <h4>{{ freelancer.name }}</h4>
-                  <p class="freelancer-title">{{ freelancer.title }}</p>
-                  <div class="freelancer-rating">
-                    <span class="stars">⭐⭐⭐⭐⭐</span>
-                    <span class="rating">4.8</span>
-                  </div>
-                  <p class="freelancer-skills">{{ freelancer.skills.join(', ') }}</p>
+                <div class="form-group">
+                  <label for="last_name">Nom</label>
+                  <input 
+                    v-model="form.last_name" 
+                    id="last_name"
+                    placeholder="Votre nom" 
+                  />
                 </div>
-                <button class="btn btn-primary btn-small">Contacter</button>
+              </div>
+              
+              <div class="form-group">
+                <label for="title">Titre professionnel</label>
+                <input 
+                  v-model="form.title" 
+                  id="title"
+                  :placeholder="form.role === 'FREELANCE' ? 'Développeur Full Stack' : 'CEO, Manager...'" 
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="description">Description</label>
+                <textarea 
+                  v-model="form.description" 
+                  id="description"
+                  placeholder="Parlez-nous de vous..." 
+                  rows="3"
+                ></textarea>
+              </div>
+
+              <div class="form-group" v-if="form.role === 'CLIENT'">
+                <label for="company_name">Nom de l'entreprise</label>
+                <input 
+                  v-model="form.company_name" 
+                  id="company_name"
+                  placeholder="Le nom de votre entreprise" 
+                />
               </div>
             </div>
-          </div>
+
+            <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
+              <span v-if="loading">Création du compte...</span>
+              <span v-else>Créer mon compte</span>
+            </button>
+          </form>
+
+          <p class="login-link">
+            Déjà un compte ? <router-link to="/login">Connectez-vous</router-link>
+          </p>
         </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Message de chargement si currentUser est null -->
-  <div v-else class="loading-container">
-    <div class="loading-spinner"></div>
-    <p>Chargement de votre tableau de bord...</p>
   </div>
 </template>
 
 <script>
-export default {
-  name: 'DashboardViewClient',
-  props: ['currentUser'],
-  data() {
-    return {
-      stats: {
-        // Freelance
-        activeMissions: 3,
-        proposalsSent: 12,
-        averageRating: 4.8,
-        estimatedEarnings: 2450,
-        // Client
-        publishedMissions: 8,
-        proposalsReceived: 24,
-        successRate: 95
-      },
-      latestOffers: [
-        {
-          id: 1,
-          title: "Développement Application React Native",
-          description: "Création d'une application mobile de gestion de tâches avec backend Node.js et base de données MongoDB.",
-          budget: 3000,
-          deadline: "15 décembre 2024",
-          skills: ["React Native", "Node.js", "MongoDB", "API REST"]
-        },
-        {
-          id: 2,
-          title: "Design Site E-commerce Modern",
-          description: "Refonte complète de l'interface utilisateur et expérience client pour une boutique en ligne.",
-          budget: 1500,
-          deadline: "10 décembre 2024",
-          skills: ["UI/UX Design", "Figma", "Adobe XD", "Web Design"]
-        },
-        {
-          id: 3,
-          title: "API REST avec Python Flask",
-          description: "Développement d'une API REST sécurisée avec authentification JWT et documentation Swagger.",
-          budget: 2000,
-          deadline: "20 décembre 2024",
-          skills: ["Python", "Flask", "JWT", "Swagger", "PostgreSQL"]
-        }
-      ],
-      recentMissions: [
-        {
-          id: 1,
-          title: "Application Mobile de Réservation",
-          client: "Restaurant Le Gourmet",
-          progress: 75,
-          status: "in-progress",
-          deadline: "20 décembre 2024"
-        },
-        {
-          id: 2,
-          title: "Site Vitrine WordPress",
-          client: "Cabinet Médical",
-          progress: 100,
-          status: "completed",
-          deadline: "5 décembre 2024"
-        }
-      ],
-      clientMissions: [
-        {
-          id: 1,
-          title: "Refonte Site Corporate",
-          proposalsCount: 8,
-          budget: 5000,
-          status: "review",
-          deadline: "25 décembre 2024"
-        },
-        {
-          id: 2,
-          title: "Application de Gestion RH",
-          proposalsCount: 12,
-          budget: 8000,
-          status: "in-progress",
-          deadline: "15 janvier 2025"
-        },
-        {
-          id: 3,
-          title: "Site E-commerce Shopify",
-          proposalsCount: 5,
-          budget: 3500,
-          status: "open",
-          deadline: "30 décembre 2024"
-        },
-        {
-          id: 4,
-          title: "Application Mobile iOS",
-          proposalsCount: 15,
-          budget: 12000,
-          status: "in-progress",
-          deadline: "20 janvier 2025"
-        },
-        {
-          id: 5,
-          title: "Design UI/UX Dashboard",
-          proposalsCount: 7,
-          budget: 2500,
-          status: "completed",
-          deadline: "10 décembre 2024"
-        },
-        {
-          id: 6,
-          title: "API REST Backend",
-          proposalsCount: 9,
-          budget: 4000,
-          status: "review",
-          deadline: "5 janvier 2025"
-        }
-      ],
-      showAllMissions: false,
-      recommendedFreelancers: [
-        {
-          id: 1,
-          name: "Marie Lambert",
-          title: "Développeuse Full Stack",
-          skills: ["React", "Node.js", "TypeScript", "AWS"],
-          rating: 4.9
-        },
-        {
-          id: 2,
-          name: "Thomas Dubois",
-          title: "UI/UX Designer Senior",
-          skills: ["Figma", "Adobe Creative Suite", "Prototypage", "Research"],
-          rating: 4.8
-        }
-      ]
-    };
-  },
-  computed: {
-    displayedMissions() {
-      return this.showAllMissions ? this.clientMissions : this.clientMissions.slice(0, 2);
-    }
-  },
-  mounted() {
-    // Rediriger si pas d'utilisateur connecté
-    if (!this.currentUser) {
-      console.log('Aucun utilisateur connecté, redirection vers login...');
-      this.$router.push('/login');
-    }
-  },
-  watch: {
-    currentUser(newVal) {
-      if (!newVal) {
-        this.$router.push('/login');
-      }
-    }
-  },
-  methods: {
-    applyToMission(missionId) {
-      console.log('Postulation à la mission:', missionId);
-      alert(`Candidature envoyée pour la mission #${missionId}`);
-    },
-    viewMission(missionId) {
-      console.log('Voir mission:', missionId);
-      this.$router.push(`/missions/${missionId}`);
-    },
-    manageProposals(missionId) {
-      console.log('Gérer propositions:', missionId);
-    },
-    toggleMissions() {
-      this.showAllMissions = !this.showAllMissions;
-    }
-  }
-};
-</script>
-
-
-
-
-
-
-
-<!-- <script>
 import { register, setUserProfile } from '@/services/api';
 
 export default {
@@ -498,7 +206,7 @@ export default {
   }
   };
 
-</script> -->
+</script>
 
 <style scoped>
 .register-page {

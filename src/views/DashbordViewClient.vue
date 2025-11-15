@@ -105,7 +105,7 @@
                 <div class="mission-status" :class="mission.status"></div>
                 <div class="mission-content">
                   <h4>{{ mission.title }}</h4>
-                  <p class="mission-client">Client: {{ mission.client }}</p>
+                  <p class="mission-client">Client: {{ mission.client.name }}</p>
                   <div class="mission-progress">
                     <div class="progress-bar">
                       <div 
@@ -228,101 +228,26 @@
 </template>
 
 <script>
+import { getMission, getLatestOffers, getClientMissions, getRecommendedFreelancers } from '@/services/api';
 export default {
   name: 'DashboardViewClient',
   props: ['currentUser'],
   data() {
-    return {
-      stats: {
-        // Freelance
-        activeMissions: 3,
-        proposalsSent: 12,
-        averageRating: 4.8,
-        estimatedEarnings: 2450,
-        // Client
-        publishedMissions: 8,
-        proposalsReceived: 24,
-        successRate: 95
-      },
-      latestOffers: [
-        {
-          id: 1,
-          title: "Développement Application React Native",
-          description: "Création d'une application mobile de gestion de tâches avec backend Node.js et base de données MongoDB.",
-          budget: 3000,
-          deadline: "15 décembre 2024",
-          skills: ["React Native", "Node.js", "MongoDB", "API REST"]
-        },
-        {
-          id: 2,
-          title: "Design Site E-commerce Modern",
-          description: "Refonte complète de l'interface utilisateur et expérience client pour une boutique en ligne.",
-          budget: 1500,
-          deadline: "10 décembre 2024",
-          skills: ["UI/UX Design", "Figma", "Adobe XD", "Web Design"]
-        },
-        {
-          id: 3,
-          title: "API REST avec Python Flask",
-          description: "Développement d'une API REST sécurisée avec authentification JWT et documentation Swagger.",
-          budget: 2000,
-          deadline: "20 décembre 2024",
-          skills: ["Python", "Flask", "JWT", "Swagger", "PostgreSQL"]
-        }
-      ],
-      recentMissions: [
-        {
-          id: 1,
-          title: "Application Mobile de Réservation",
-          client: "Restaurant Le Gourmet",
-          progress: 75,
-          status: "in-progress",
-          deadline: "20 décembre 2024"
-        },
-        {
-          id: 2,
-          title: "Site Vitrine WordPress",
-          client: "Cabinet Médical",
-          progress: 100,
-          status: "completed",
-          deadline: "5 décembre 2024"
-        }
-      ],
-      clientMissions: [
-        {
-          id: 1,
-          title: "Refonte Site Corporate",
-          proposalsCount: 8,
-          budget: 5000,
-          status: "review",
-          deadline: "25 décembre 2024"
-        },
-        {
-          id: 2,
-          title: "Application de Gestion RH",
-          proposalsCount: 12,
-          budget: 8000,
-          status: "in-progress",
-          deadline: "15 janvier 2025"
-        }
-      ],
-      recommendedFreelancers: [
-        {
-          id: 1,
-          name: "Marie Lambert",
-          title: "Développeuse Full Stack",
-          skills: ["React", "Node.js", "TypeScript", "AWS"],
-          rating: 4.9
-        },
-        {
-          id: 2,
-          name: "Thomas Dubois",
-          title: "UI/UX Designer Senior",
-          skills: ["Figma", "Adobe Creative Suite", "Prototypage", "Research"],
-          rating: 4.8
-        }
-      ]
-    };
+  return {
+    stats: {
+      activeMissions: 0,
+      proposalsSent: 0,
+      averageRating: 0,
+      estimatedEarnings: 0,
+      publishedMissions: 0,
+      proposalsReceived: 0,
+      successRate: 0
+    },
+    latestOffers: [],       // Offres depuis la BD
+    recentMissions: [],     // Missions récentes depuis la BD
+    clientMissions: [],     // Missions du client depuis la BD
+    recommendedFreelancers: [] // Freelances depuis la BD
+  };
   },
   mounted() {
     // Rediriger si pas d'utilisateur connecté
@@ -339,18 +264,42 @@ export default {
     }
   },
   methods: {
-    applyToMission(missionId) {
-      console.log('Postulation à la mission:', missionId);
-      alert(`Candidature envoyée pour la mission #${missionId}`);
+    async loadDashboardData() {
+      try {
+        // Missions récentes
+        if (this.currentUser.role === 'FREELANCE') {
+          this.recentMissions = await getMission(this.currentUser.id); 
+          this.latestOffers = await getLatestOffers();
+        }
+
+        // Missions client
+        if (this.currentUser.role === 'CLIENT') {
+          this.clientMissions = await getClientMissions(this.currentUser.id);
+        }
+
+        // Freelances recommandés
+        this.recommendedFreelancers = await getRecommendedFreelancers();
+
+        // Optionnel : calculer les stats dynamiquement
+        this.stats.activeMissions = this.recentMissions.filter(m => m.status === 'in-progress').length;
+        this.stats.publishedMissions = this.clientMissions.length;
+        this.stats.proposalsReceived = this.clientMissions.reduce((sum, m) => sum + (m.proposalsCount || 0), 0);
+        // ... et autres stats
+      } catch (error) {
+        console.error("Erreur lors du chargement du tableau de bord :", error);
+      }
     },
     viewMission(missionId) {
-      console.log('Voir mission:', missionId);
       this.$router.push(`/missions/${missionId}`);
     },
+    applyToMission(missionId) {
+      alert(`Candidature envoyée pour la mission #${missionId}`);
+    },
     manageProposals(missionId) {
-      console.log('Gérer propositions:', missionId);
+      this.$router.push(`/missions/${missionId}/proposals`);
     }
   }
+
 };
 </script>
 
