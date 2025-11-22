@@ -1,26 +1,14 @@
 <template>
-  <!-- CORRECTION 1: Ajout de v-if="currentUser" sur la div principale -->
   <div class="dashboard" v-if="currentUser">
     <div class="dashboard-header">
       <div class="welcome-section">
         <h1>Tableau de bord</h1>
-        <!-- CORRECTION 2: Suppression de la div v-if="currentUser" redondante, accès direct à currentUser -->
         <p class="welcome-message">Bon retour, <strong>{{ currentUser.email }}</strong> !</p>
-        <p class="welcome-subtitle" v-if="currentUser.role === 'FREELANCE'">
+        <p class="welcome-subtitle">
           Prêt à trouver votre prochaine mission ?
-        </p>
-        <p class="welcome-subtitle" v-else>
-          Trouvez le talent parfait pour votre projet.
         </p>
       </div>
       <div class="header-actions">
-        <router-link 
-          v-if="currentUser.role === 'FREELANCE'" 
-          to="/freelance-profile" 
-          class="btn btn-primary"
-        >
-          ✨ Compléter mon profil
-        </router-link>
         <router-link to="/missions" class="btn btn-secondary">
           📋 Voir les missions
         </router-link>
@@ -28,15 +16,14 @@
     </div>
 
     <div class="dashboard-content">
-      <!-- Pour les freelances -->
-      <div v-if="currentUser.role === 'FREELANCE'" class="freelance-dashboard">
+      <div class="freelance-dashboard">
+        <!-- Stats freelance -->
         <div class="stats-grid">
           <div class="stat-card primary">
             <div class="stat-icon">🚀</div>
             <div class="stat-content">
               <h3>Missions actives</h3>
               <p class="stat-number">{{ stats.activeMissions }}</p>
-              <p class="stat-trend">+2 cette semaine</p>
             </div>
           </div>
           
@@ -45,7 +32,6 @@
             <div class="stat-content">
               <h3>Candidatures envoyées</h3>
               <p class="stat-number">{{ stats.proposalsSent }}</p>
-              <p class="stat-trend">12 ce mois</p>
             </div>
           </div>
           
@@ -54,7 +40,6 @@
             <div class="stat-content">
               <h3>Note moyenne</h3>
               <p class="stat-number">{{ stats.averageRating }}/5</p>
-              <p class="stat-trend">24 avis</p>
             </div>
           </div>
           
@@ -63,298 +48,130 @@
             <div class="stat-content">
               <h3>Revenus estimés</h3>
               <p class="stat-number">{{ stats.estimatedEarnings }}€</p>
-              <p class="stat-trend">Ce mois</p>
             </div>
           </div>
         </div>
 
-        <div class="content-grid">
-          <div class="content-section">
-            <div class="section-header">
-              <h3>🎯 Offres recommandées</h3>
-              <router-link to="/missions" class="see-all">Tout voir</router-link>
-            </div>
-            <div class="offers-list">
-              <div v-for="offer in latestOffers" :key="offer.id" class="offer-card">
-                <div class="offer-header">
-                  <h4>{{ offer.title }}</h4>
-                  <span class="budget">{{ offer.budget }}€</span>
-                </div>
-                <p class="offer-description">{{ offer.description }}</p>
-                <div class="offer-meta">
-                  <span class="deadline">⏱️ {{ offer.deadline }}</span>
-                  <span class="skills">{{ offer.skills.join(', ') }}</span>
-                </div>
-                <div class="offer-actions">
-                  <button @click="viewMission(offer.id)" class="btn btn-secondary btn-small">
-                    Voir détails
-                  </button>
-                  <button @click="applyToMission(offer.id)" class="btn btn-primary btn-small">
-                    Postuler
-                  </button>
-                </div>
-              </div>
-            </div>
+        <!-- Missions récentes -->
+        <div class="content-section">
+          <div class="section-header">
+            <h3>📈 Mes missions récentes</h3>
+            <router-link to="/missions" class="see-all">Voir toutes</router-link>
           </div>
-
-          <div class="content-section">
-            <div class="section-header">
-              <h3>📈 Mes missions</h3>
-              <span class="badge">{{ recentMissions.length }}</span>
-            </div>
-            <div class="missions-list">
-              <div v-for="mission in recentMissions" :key="mission.id" class="mission-card">
-                <div class="mission-status" :class="mission.status"></div>
-                <div class="mission-content">
-                  <h4>{{ mission.title }}</h4>
-                  <p class="mission-client">Client: {{ mission.client }}</p>
-                  <div class="mission-progress">
-                    <div class="progress-bar">
-                      <div 
-                        class="progress-fill" 
-                        :style="{ width: mission.progress + '%' }"
-                      ></div>
-                    </div>
-                    <span class="progress-text">{{ mission.progress }}%</span>
+          <div class="missions-list">
+            <div v-for="mission in recentMissions" :key="mission.id" class="mission-card">
+              <div class="mission-status" :class="mission.status"></div>
+              <div class="mission-content">
+                <h4>{{ mission.title }}</h4>
+                <p class="mission-client">Client: {{ mission.client.name }}</p>
+                <div class="mission-progress">
+                  <div class="progress-bar">
+                    <div :style="{ width: mission.progress + '%' }" class="progress-fill"></div>
                   </div>
-                  <p class="mission-deadline">Échéance: {{ mission.deadline }}</p>
+                  <span class="progress-text">{{ mission.progress }}%</span>
+                </div>
+                <p class="mission-deadline">Échéance: {{ mission.deadline }}</p>
+                <div class="mission-actions">
+                  <button @click="viewMission(mission.id)" class="btn btn-primary btn-small">Voir détails</button>
+                  <button @click="applyToMission(mission.id)" class="btn btn-secondary btn-small">Postuler</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Pour les clients -->
-      <div v-else-if="currentUser.role === 'CLIENT'" class="client-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card primary">
-            <div class="stat-icon">📊</div>
-            <div class="stat-content">
-              <h3>Missions publiées</h3>
-              <p class="stat-number">{{ stats.publishedMissions }}</p>
-              <p class="stat-trend">3 actives</p>
-            </div>
+        <!-- Offres récentes -->
+        <div class="content-section">
+          <div class="section-header">
+            <h3>🎯 Offres récentes</h3>
+            <router-link to="/missions" class="see-all">Tout voir</router-link>
           </div>
-          
-          <div class="stat-card success">
-            <div class="stat-icon">📨</div>
-            <div class="stat-content">
-              <h3>Propositions reçues</h3>
-              <p class="stat-number">{{ stats.proposalsReceived }}</p>
-              <p class="stat-trend">12 en attente</p>
-            </div>
-          </div>
-          
-          <div class="stat-card warning">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-content">
-              <h3>Missions actives</h3>
-              <p class="stat-number">{{ stats.activeMissions }}</p>
-              <p class="stat-trend">En cours</p>
-            </div>
-          </div>
-          
-          <div class="stat-card info">
-            <div class="stat-icon">✅</div>
-            <div class="stat-content">
-              <h3>Taux de réussite</h3>
-              <p class="stat-number">{{ stats.successRate }}%</p>
-              <p class="stat-trend">Projets terminés</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="content-grid">
-          <div class="content-section">
-            <div class="section-header">
-              <h3>📋 Mes missions récentes</h3>
-              <router-link to="/missions?my=true" class="see-all">Gérer</router-link>
-            </div>
-            <div class="missions-list">
-              <div v-for="mission in clientMissions" :key="mission.id" class="mission-card">
-                <div class="mission-status" :class="mission.status"></div>
-                <div class="mission-content">
-                  <h4>{{ mission.title }}</h4>
-                  <p class="mission-meta">
-                    <span class="proposals">📨 {{ mission.proposalsCount }} propositions</span>
-                    <span class="budget">💰 {{ mission.budget }}€</span>
-                  </p>
-                  <p class="mission-deadline">⏱️ {{ mission.deadline }}</p>
-                  <div class="mission-actions">
-                    <button @click="viewMission(mission.id)" class="btn btn-primary btn-small">
-                      Voir détails
-                    </button>
-                    <button @click="manageProposals(mission.id)" class="btn btn-secondary btn-small">
-                      Propositions
-                    </button>
-                  </div>
-                </div>
+          <div class="offers-list">
+            <div v-for="offer in latestOffers" :key="offer.id" class="offer-card">
+              <div class="offer-header">
+                <h4>{{ offer.title }}</h4>
+                <span class="budget">{{ offer.budget }}€</span>
               </div>
-            </div>
-          </div>
-
-          <div class="content-section">
-            <div class="section-header">
-              <h3>👥 Freelances recommandés</h3>
-              <router-link to="/profiles" class="see-all">Explorer</router-link>
-            </div>
-            <div class="freelancers-list">
-              <div v-for="freelancer in recommendedFreelancers" :key="freelancer.id" class="freelancer-card">
-                <div class="freelancer-avatar">
-                  {{ freelancer.name.charAt(0) }}
-                </div>
-                <div class="freelancer-info">
-                  <h4>{{ freelancer.name }}</h4>
-                  <p class="freelancer-title">{{ freelancer.title }}</p>
-                  <div class="freelancer-rating">
-                    <span class="stars">⭐⭐⭐⭐⭐</span>
-                    <span class="rating">4.8</span>
-                  </div>
-                  <p class="freelancer-skills">{{ freelancer.skills.join(', ') }}</p>
-                </div>
-                <button class="btn btn-primary btn-small">Contacter</button>
+              <p class="offer-description">{{ offer.description }}</p>
+              <div class="offer-meta">
+                <span class="deadline">⏱️ {{ offer.deadline }}</span>
+                <span class="skills">{{ offer.skills.join(', ') }}</span>
+              </div>
+              <div class="offer-actions">
+                <button @click="viewMission(offer.id)" class="btn btn-secondary btn-small">Voir détails</button>
+                <button @click="applyToMission(offer.id)" class="btn btn-primary btn-small">Postuler</button>
               </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
-  
-  <!-- CORRECTION 3: Ajout d'un message de chargement si currentUser est null -->
+
   <div v-else class="loading-container">
     <p>Chargement...</p>
   </div>
 </template>
 
 <script>
+import { getFreelanceMissions, getLatestOffers } from '@/services/api';
+
 export default {
-  name: 'DashboardView',
+  name: 'DashboardViewFreelance',
   props: ['currentUser'],
   data() {
     return {
       stats: {
-        // Freelance
-        activeMissions: 3,
-        proposalsSent: 12,
-        averageRating: 4.8,
-        estimatedEarnings: 2450,
-        // Client
-        publishedMissions: 8,
-        proposalsReceived: 24,
-        activeMissions: 3,
-        successRate: 95
+        activeMissions: 0,
+        proposalsSent: 0,
+        averageRating: 0,
+        estimatedEarnings: 0
       },
-      latestOffers: [
-        {
-          id: 1,
-          title: "Développement Application React Native",
-          description: "Création d'une application mobile de gestion de tâches avec backend Node.js et base de données MongoDB.",
-          budget: 3000,
-          deadline: "15 décembre 2024",
-          skills: ["React Native", "Node.js", "MongoDB", "API REST"]
-        },
-        {
-          id: 2,
-          title: "Design Site E-commerce Modern",
-          description: "Refonte complète de l'interface utilisateur et expérience client pour une boutique en ligne.",
-          budget: 1500,
-          deadline: "10 décembre 2024",
-          skills: ["UI/UX Design", "Figma", "Adobe XD", "Web Design"]
-        },
-        {
-          id: 3,
-          title: "API REST avec Python Flask",
-          description: "Développement d'une API REST sécurisée avec authentification JWT et documentation Swagger.",
-          budget: 2000,
-          deadline: "20 décembre 2024",
-          skills: ["Python", "Flask", "JWT", "Swagger", "PostgreSQL"]
-        }
-      ],
-      recentMissions: [
-        {
-          id: 1,
-          title: "Application Mobile de Réservation",
-          client: "Restaurant Le Gourmet",
-          progress: 75,
-          status: "in-progress",
-          deadline: "20 décembre 2024"
-        },
-        {
-          id: 2,
-          title: "Site Vitrine WordPress",
-          client: "Cabinet Médical",
-          progress: 100,
-          status: "completed",
-          deadline: "5 décembre 2024"
-        }
-      ],
-      clientMissions: [
-        {
-          id: 1,
-          title: "Refonte Site Corporate",
-          proposalsCount: 8,
-          budget: 5000,
-          status: "review",
-          deadline: "25 décembre 2024"
-        },
-        {
-          id: 2,
-          title: "Application de Gestion RH",
-          proposalsCount: 12,
-          budget: 8000,
-          status: "in-progress",
-          deadline: "15 janvier 2025"
-        }
-      ],
-      recommendedFreelancers: [
-        {
-          id: 1,
-          name: "Marie Lambert",
-          title: "Développeuse Full Stack",
-          skills: ["React", "Node.js", "TypeScript", "AWS"],
-          rating: 4.9
-        },
-        {
-          id: 2,
-          name: "Thomas Dubois",
-          title: "UI/UX Designer Senior",
-          skills: ["Figma", "Adobe Creative Suite", "Prototypage", "Research"],
-          rating: 4.8
-        }
-      ]
+      recentMissions: [],
+      latestOffers: []
     };
   },
-  // CORRECTION 4: Ajout de mounted() pour rediriger vers login si pas d'utilisateur
-  mounted() {
+  async mounted() {
     if (!this.currentUser) {
       this.$router.push('/');
+      return;
     }
+    await this.loadDashboardData();
   },
-  // CORRECTION 5: Ajout de watch pour surveiller les changements de currentUser
   watch: {
     currentUser(newVal) {
-      if (!newVal) {
-        this.$router.push('/');
-      }
+      if (!newVal) this.$router.push('/');
     }
   },
   methods: {
-    applyToMission(missionId) {
-      console.log('Postulation à la mission:', missionId);
-      alert(`Candidature envoyée pour la mission #${missionId}`);
+    async loadDashboardData() {
+      try {
+        const missionsRes = await getFreelanceMissions(this.currentUser.id);
+        this.recentMissions = missionsRes.data.missions_freelance || [];
+
+        const offersRes = await getLatestOffers();
+        this.latestOffers = offersRes.data.last_offers || [];
+
+        // Calcul des stats
+        this.stats.activeMissions = this.recentMissions.filter(m => m.status === 'IN_PROGRESS').length;
+        this.stats.proposalsSent = this.recentMissions.length; // ou calcul selon API
+        this.stats.averageRating = 4.7; // à remplacer par la valeur réelle depuis l'API
+        this.stats.estimatedEarnings = 1500; // idem
+      } catch (error) {
+        console.error("Erreur lors du chargement du dashboard freelance :", error);
+      }
     },
-    viewMission(missionId) {
-      console.log('Voir mission:', missionId);
-      this.$router.push(`/missions/${missionId}`);
+    viewMission(id) {
+      this.$router.push(`/missions/${id}`);
     },
-    manageProposals(missionId) {
-      console.log('Gérer propositions:', missionId);
+    applyToMission(id) {
+      alert(`Candidature envoyée pour la mission #${id}`);
     }
   }
 };
 </script>
+
 
 <style scoped>
 .dashboard {

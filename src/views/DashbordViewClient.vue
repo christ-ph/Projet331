@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard" v-if="currentUser">
+  <div class="dashboard" v-if="currentUser && isLoaded">
     <div class="dashboard-header">
       <div class="welcome-section">
         <h1>Tableau de bord</h1>
@@ -220,7 +220,7 @@
     </div>
   </div>
   
-  <!-- Message de chargement si currentUser est null -->
+  <!-- Message de chargement si currentUser est null ou pas chargé -->
   <div v-else class="loading-container">
     <div class="loading-spinner"></div>
     <p>Chargement de votre tableau de bord...</p>
@@ -228,81 +228,274 @@
 </template>
 
 <script>
-import { getMission, getLatestOffers, getClientMissions, getRecommendedFreelancers } from '@/services/api';
+import {  
+  getUserMissions, 
+  getRecommendedFreelancers,
+  getClientMissionsAppliedByFreelance
+} from '@/services/api';
+
 export default {
   name: 'DashboardViewClient',
   props: ['currentUser'],
   data() {
-  return {
-    stats: {
-      activeMissions: 0,
-      proposalsSent: 0,
-      averageRating: 0,
-      estimatedEarnings: 0,
-      publishedMissions: 0,
-      proposalsReceived: 0,
-      successRate: 0
-    },
-    latestOffers: [],       // Offres depuis la BD
-    recentMissions: [],     // Missions récentes depuis la BD
-    clientMissions: [],     // Missions du client depuis la BD
-    recommendedFreelancers: [] // Freelances depuis la BD
-  };
-  },
-  mounted() {
-    // Rediriger si pas d'utilisateur connecté
-    if (!this.currentUser) {
-      console.log('Aucun utilisateur connecté, redirection vers login...');
-      this.$router.push('/login');
-    }
+    return {
+      isLoaded: false,
+      stats: {
+        publishedMissions: 0,
+        activeMissions: 0,
+        proposalsReceived: 0,
+        successRate: 0
+      },
+      clientMissions: [],
+      missionsWithApplications: [],
+      recommendedFreelancers: [],
+    };
   },
   watch: {
-    currentUser(newVal) {
-      if (!newVal) {
-        this.$router.push('/');
+    currentUser: {
+      immediate: true,
+      async handler(newVal) {
+        if (!newVal || newVal.role !== "CLIENT") {
+          this.$router.push('/login');
+          return;
+        }
+        try {
+          await this.loadClientMissions();
+          await this.loadRecommendedFreelancers();
+          await this.loadMissionsWithApplications();
+          this.isLoaded = true;
+        } catch (error) {
+          console.error("Erreur dashboard:", error);
+          this.isLoaded = true;
+        }
       }
     }
   },
   methods: {
-    async loadDashboardData() {
+    async loadClientMissions() {
       try {
-        // Missions récentes
-        if (this.currentUser.role === 'FREELANCE') {
-          this.recentMissions = await getMission(this.currentUser.id); 
-          this.latestOffers = await getLatestOffers();
-        }
-
-        // Missions client
-        if (this.currentUser.role === 'CLIENT') {
-          this.clientMissions = await getClientMissions(this.currentUser.id);
-        }
-
-        // Freelances recommandés
-        this.recommendedFreelancers = await getRecommendedFreelancers();
-
-        // Optionnel : calculer les stats dynamiquement
-        this.stats.activeMissions = this.recentMissions.filter(m => m.status === 'in-progress').length;
+        const res = await getUserMissions(this.currentUser.id);
+        this.clientMissions = res.data?.missions || [];
+        
+        // Statistiques missions
         this.stats.publishedMissions = this.clientMissions.length;
-        this.stats.proposalsReceived = this.clientMissions.reduce((sum, m) => sum + (m.proposalsCount || 0), 0);
-        // ... et autres stats
+        this.stats.activeMissions = this.clientMissions.filter(
+          m => m.status === "ACTIVE" || m.status === "IN_PROGRESS"
+        ).length;
+        
+        const completed = this.clientMissions.filter(m => m.status === "COMPLETED").length;
+        this.stats.successRate = this.clientMissions.length
+          ? Math.round((completed / this.clientMissions.length) * 100)
+          : 0;
       } catch (error) {
-        console.error("Erreur lors du chargement du tableau de bord :", error);
+        console.error("Erreur loadClientMissions:", error);
+        this.clientMissions = [];
       }
     },
-    viewMission(missionId) {
-      this.$router.push(`/missions/${missionId}`);
+    
+    async loadRecommendedFreelancers() {
+      try {
+        if (!this.clientMissions.length) {
+          this.recommendedFreelancers = [];
+          return;
+        }
+        const missionId = this.clientMissions[0].id;
+        const res = await getRecommendedFreelancers(missionId);
+        this.recommendedFreelancers = res.data?.recommended_freelancers || [];
+      } catch (error) {
+        console.error("Erreur loadRecommendedFreelancers:", error);
+        this.recommendedFreelancers = [];
+      }
     },
-    applyToMission(missionId) {
-      alert(`Candidature envoyée pour la mission #${missionId}`);
+    
+    async loadMissionsWithApplications() {
+      try {
+        const res = await getClientMissionsAppliedByFreelance(this.currentUser.id);
+        // FIX: La réponse retourne 'missions_with_applications' pas 'missions'
+        this.missionsWithApplications = res.data?.missions_with_applications || [];
+        
+        // Statistique : nombre total de propositions reçues
+        this.stats.proposalsReceived = this.missionsWithApplications.reduce(
+          (total, m) => total + (m.applications?.length || 0),
+          0
+        );
+      } catch (error) {
+        console.error("Erreur loadMissionsWithApplications:", error);
+        this.missionsWithApplications = [];
+      }
     },
-    manageProposals(missionId) {
-      this.$router.push(`/missions/${missionId}/proposals`);
+    
+    viewMission(id) {
+      // FIX: Syntaxe template literal incorrecte
+      this.$router.push(`/missions/${id}`);
+    },
+    
+    manageProposals(id) {
+      // FIX: Syntaxe template literal incorrecte
+      this.$router.push(`/missions/${id}/proposals`);
     }
   }
-
 };
 </script>
 
+
+<!-- <script>
+import {  
+  getUserMissions, 
+  getRecommendedFreelancers,
+  getClientMissionsAppliedByFreelance
+} from '@/services/api';
+
+export default {
+  name: 'DashboardViewClient',
+  props: ['currentUser'],
+
+  data() {
+    return {
+      isLoaded: false,
+      stats: {
+        activeMissions: 0,
+        proposalsSent: 0,
+        averageRating: 0,
+        estimatedEarnings: 0,
+        publishedMissions: 0,
+        proposalsReceived: 0,
+        successRate: 0
+      },
+      latestOffers: [],
+      recentMissions: [],
+      clientMissions: [],
+      recommendedFreelancers: [],
+    };
+  },
+
+  watch: {
+    currentUser: {
+      immediate: true,
+      async handler(newVal) {
+        // Attendre que currentUser soit défini et non null
+        if (!newVal) {
+          this.isLoaded = false;
+          return;
+        }
+
+        // Vérifier le rôle
+        if (newVal.role !== "CLIENT") {
+          this.$router.push('/login');
+          return;
+        }
+
+        try {
+          // Charger les données
+          await this.loadDashboardData();
+          await this.loadRecommendedFreelancers();
+          await this.loadClientMissionsAppliedByFreelance();
+          this.isLoaded = true;
+        } catch (error) {
+          console.error("Erreur lors du chargement du dashboard:", error);
+          this.isLoaded = true;
+        }
+      }
+    }
+  },
+
+  methods: {
+    async loadDashboardData() {
+      try {
+        if (!this.currentUser || !this.currentUser.id) {
+          throw new Error("User ID manquant");
+        }
+
+        const res = await getUserMissions(this.currentUser.id);
+        
+        if (res.data && res.data.missions) {
+          this.clientMissions = Array.isArray(res.data.missions) 
+            ? res.data.missions 
+            : [];
+        } else {
+          this.clientMissions = [];
+        }
+        
+        this.calculerstatclient();
+      } catch (error) {
+        console.error("Erreur loadDashboardData:", error);
+        this.clientMissions = [];
+      }
+    },
+
+    calculerstatclient() {
+      const missions = this.clientMissions || [];
+
+      this.stats.publishedMissions = missions.length;
+      this.stats.activeMissions = missions.filter(
+        m => m.status === "ACTIVE" || m.status === "IN_PROGRESS"
+      ).length;
+
+      const completed = missions.filter(m => m.status === "COMPLETED").length;
+      this.stats.successRate = missions.length
+        ? Math.round((completed / missions.length) * 100)
+        : 0;
+    },
+
+    async loadRecommendedFreelancers() {
+      try {
+        if (!this.clientMissions || !this.clientMissions.length) {
+          this.recommendedFreelancers = [];
+          return;
+        }
+
+        const missionId = this.clientMissions[0].id;
+        const res = await getRecommendedFreelancers(missionId);
+
+        if (res.data && res.data.recommended_freelancers) {
+          this.recommendedFreelancers = Array.isArray(res.data.recommended_freelancers)
+            ? res.data.recommended_freelancers
+            : [];
+        } else {
+          this.recommendedFreelancers = [];
+        }
+      } catch (error) {
+        console.error("Erreur loadRecommendedFreelancers:", error);
+        this.recommendedFreelancers = [];
+      }
+    },
+    async loadClientMissionsAppliedByFreelance() {
+      try {
+        if (!this.currentUser || !this.currentUser.id) {
+          throw new Error("User ID manquant");
+        }
+
+        const res = await getClientMissionsAppliedByFreelance(this.currentUser.id);
+        
+        if (res.data && res.data.missions_applied) {
+          this.clientMissions = Array.isArray(res.data.missions_applied) 
+            ? res.data.missions_applied 
+            : [];
+        } else {
+          this.clientMissions = [];
+        }
+        this.proposalsSent = this.clientMissions.length;
+      } catch (error) {
+        console.error("Erreur loadClientMissionsAppliedByFreelance:", error);
+        this.clientMissions = [];
+      }
+    },
+
+    viewMission(id) {
+      this.$router.push(`/missions/${id}`);
+    },
+
+    manageProposals(id) {
+      this.$router.push(`/missions/${id}/proposals`);
+    },
+
+    applyToMission(id) {
+      alert(`Candidature envoyée pour la mission #${id}`);
+    }
+  }
+};
+</script> -->
+  
 <style scoped>
 .dashboard {
   max-width: 1200px;

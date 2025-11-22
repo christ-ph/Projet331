@@ -61,13 +61,45 @@ export const deletePortfolioItem = (profileId, itemId) => api.delete(`/profiles/
 
 // === MISSIONS ===
 export const getMissions = (params = {}) => api.get('/missions', { params });
+
+// FIX: Backticks manquants au début
 export const getMission = (missionId) => api.get(`/missions/${missionId}`);
+
 export const createMission = (data) => api.post('/missions', data);
+
+// FIX: Backticks manquants au début et données en 3e paramètre
 export const updateMission = (missionId, data) => api.put(`/missions/${missionId}`, data);
+
+// FIX: Backticks manquants au début
 export const deleteMission = (missionId) => api.delete(`/missions/${missionId}`);
+
+// FIX: Backticks manquants au début
 export const applyToMission = (missionId, data) => api.post(`/missions/${missionId}/apply`, data);
+
+// FIX: Backticks manquants au début
 export const getUserMissions = (userId) => api.get(`/users/${userId}/missions`);
+
+// FIX: Backticks manquants au début
 export const getUserApplications = (userId) => api.get(`/users/${userId}/applications`);
+
+// FIX: Backticks manquants au début
+export const getMissionLastOffers = () => api.get(`/missions/last`);
+
+// FIX: Backticks manquants au début
+export const getFreelanceMissions = (freelanceId) => api.get(`/freelancers/${freelanceId}/missions`);
+
+// FIX: Backticks manquants au début
+export const getRecommendedFreelancers = (missionId) => api.get(`/missions/${missionId}/recommended-freelancers`);
+
+// FIX: Backticks manquants au début
+export const getClientMissionsAppliedByFreelance = (clientId) => api.get(`/clients/${clientId}/missions-applied-by-freelance`);
+
+// FIX: Backticks manquants au début
+export const getFreelanceAppliedMissions = (freelanceId) => api.get(`/freelancers/${freelanceId}/missions-applied`);
+
+// FIX: Backticks manquants au début
+export const getMissionApplications = (missionId) => api.get(`/missions/${missionId}/applications`);
+
 
 export const getMyMissions = () => {
   const user = JSON.parse(localStorage.getItem('user'));

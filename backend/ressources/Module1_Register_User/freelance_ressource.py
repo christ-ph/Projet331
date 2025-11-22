@@ -3,6 +3,7 @@ from controllers.Module1_Register_User.freelance_controller import FreelanceCont
 from flask_restful import Resource, reqparse
 
 
+
 controller = FreelanceController()
 
 class FreelanceListResource(Resource):

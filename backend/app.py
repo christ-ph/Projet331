@@ -1,4 +1,3 @@
-# [file name]: app.py - VERSION CORRIGÉE COMPLÈTE
 from dotenv import load_dotenv
 import os
 from flask import Flask
@@ -39,12 +38,18 @@ api.add_resource(FreelanceResource, '/api/profiles/<int:user_id>')
 api.add_resource(PortfolioListResource, '/api/profiles/<int:profile_id>/portfolio')
 api.add_resource(PortfolioItemResource, '/api/profiles/<int:profile_id>/portfolio/<int:item_id>')
 
-# Routes Missions - ✅ VERSION CORRIGÉE
+# Routes Missions 
 api.add_resource(MissionListResource, '/api/missions')
 api.add_resource(MissionResource, '/api/missions/<int:mission_id>')
 api.add_resource(ApplicationResource, '/api/missions/<int:mission_id>/apply')
 api.add_resource(UserMissionsResource, '/api/users/<int:user_id>/missions')
 api.add_resource(UserApplicationsResource, '/api/users/<int:user_id>/applications')
+api.add_resource(MissionLastOffersResource, '/api/missions/last')
+api.add_resource(MissionFreelanceMissionsResource, '/api/freelancers/<int:freelance_id>/missions')
+api.add_resource(MissionRecommendedFreelancersResource, "/api/missions/<int:mission_id>/recommended-freelancers")
+api.add_resource(MissionClientAppliedByFreelanceResource, "/api/clients/<int:client_id>/missions-applied-by-freelance")
+api.add_resource(MissionFreelanceAppliedResource, "/api/freelancers/<int:freelance_id>/missions-applied")
+api.add_resource(MissionApplicationsSpecifiquesResource, "/api/missions/<int:mission_id>/applications")  # FIX
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)
