@@ -206,12 +206,6 @@
               
               <div class="mission-actions">
                 <button 
-                  @click="viewMission(mission.id)" 
-                  class="btn btn-secondary btn-small"
-                >
-                  👀 Voir
-                </button>
-                <button 
                   @click="applyToMission(mission)" 
                   class="btn btn-primary btn-small"
                   :disabled="mission.hasApplied"

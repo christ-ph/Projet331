@@ -49,7 +49,10 @@ api.add_resource(MissionFreelanceMissionsResource, '/api/freelancers/<int:freela
 api.add_resource(MissionRecommendedFreelancersResource, "/api/missions/<int:mission_id>/recommended-freelancers")
 api.add_resource(MissionClientAppliedByFreelanceResource, "/api/clients/<int:client_id>/missions-applied-by-freelance")
 api.add_resource(MissionFreelanceAppliedResource, "/api/freelancers/<int:freelance_id>/missions-applied")
-api.add_resource(MissionApplicationsSpecifiquesResource, "/api/missions/<int:mission_id>/applications")  # FIX
-
+api.add_resource(MissionApplicationsResource,"/api/missions/<int:mission_id>/applications")
+api.add_resource(ApplicationStatusUpdateResource,'/api/applications/<int:application_id>/status')
+api.add_resource(FreelanceActiveMissionsResource, "/api/freelance/missions/active")
+api.add_resource(MissionDetailedResource, '/api/missions/<int:mission_id>/detailed')
+api.add_resource(MissionCompleteOrCancelResource,"/api/missions/<int:mission_id>/status")
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)

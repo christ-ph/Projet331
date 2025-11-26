@@ -99,7 +99,10 @@ export const getFreelanceAppliedMissions = (freelanceId) => api.get(`/freelancer
 
 // FIX: Backticks manquants au début
 export const getMissionApplications = (missionId) => api.get(`/missions/${missionId}/applications`);
-
+export const updateApplicationStatus = (applicationId, data) => api.put(`/applications/${applicationId}/status`, data);
+export const getFreelanceActiveMissions = () => api.get(`/freelance/missions/active`);
+export const getMissionDetailed = (missionId) => api.get(`/missions/${missionId}/detailed`);
+export const completeOrCancelMission = (mission_id, data) => api.put(`/missions/${mission_id}/status`, data);
 
 export const getMyMissions = () => {
   const user = JSON.parse(localStorage.getItem('user'));
