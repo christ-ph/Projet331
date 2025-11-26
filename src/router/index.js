@@ -8,6 +8,7 @@ import FreelanceProfileView from '../views/FreelanceProfileView.vue';
 import MissionsView from '../views/MissionsView.vue';
 import DashbordViewClient from '@/views/DashbordViewClient.vue';
 import MissionsViewClient from '@/views/MissionsViewClient.vue';
+import MissionApplicationsView from '@/views/MissionApplicationsView.vue';
 
 const routes = [
   { 
@@ -67,6 +68,13 @@ const routes = [
     path: '/dashboard-client', 
     name: "Dashboard-client", 
     component: DashbordViewClient, 
+    meta: { requiresAuth: true },
+    props: true
+  },
+  {
+    path: '/missionsApplications',
+    name: "MissionApplicationsView",
+    component: MissionApplicationsView,
     meta: { requiresAuth: true },
     props: true
   },

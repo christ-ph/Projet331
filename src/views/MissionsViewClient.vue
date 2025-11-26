@@ -1,6 +1,6 @@
+
 <template>
   <div class="missions-client-page">
-    <!-- Header avec bouton de création -->
     <div class="missions-header">
       <div class="header-main">
         <h1>🎯 Mes Missions</h1>
@@ -14,7 +14,6 @@
       </div>
     </div>
 
-    <!-- Statistiques rapides -->
     <div class="client-stats">
       <div class="stat-card">
         <div class="stat-icon">📋</div>
@@ -46,7 +45,6 @@
       </div>
     </div>
 
-    <!-- Filtres et recherche -->
     <div class="filters-bar">
       <div class="search-box">
         <input 
@@ -70,7 +68,6 @@
       </div>
     </div>
 
-    <!-- Liste des missions du client -->
     <div class="missions-list">
       <div class="list-header">
         <h2>{{ filteredMissions.length }} mission(s)</h2>
@@ -86,7 +83,6 @@
         </div>
       </div>
 
-      <!-- Grid des missions -->
       <div class="missions-grid">
         <div 
           v-for="mission in sortedMissions" 
@@ -94,7 +90,6 @@
           class="mission-card"
           :class="mission.status"
         >
-          <!-- Badge de statut -->
           <div class="mission-status-badge" :class="mission.status">
             {{ getStatusLabel(mission.status) }}
           </div>
@@ -192,17 +187,16 @@
               </button>
               <button 
                 v-else-if="mission.status === 'IN_PROGRESS'"
-                @click="viewMission(mission.id)" 
+                @click="showCompleteOrCancelModal(mission.id)" 
                 class="btn btn-info btn-small"
               >
-                📊 Suivre
+                📊 Suivre / Terminer
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- État vide -->
       <div v-if="filteredMissions.length === 0 && !loading" class="empty-state">
         <div class="empty-icon">📋</div>
         <h3>Aucune mission trouvée</h3>
@@ -217,14 +211,12 @@
         </button>
       </div>
 
-      <!-- État de chargement -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
         <p>Chargement de vos missions...</p>
       </div>
     </div>
 
-    <!-- Modal de création de mission -->
     <div v-if="showCreateMissionModal" class="modal-overlay">
       <div class="modal-content large">
         <div class="modal-header">
@@ -394,10 +386,61 @@
         </div>
       </div>
     </div>
+    
+    <div v-if="showStatusUpdateModal && missionToUpdate" class="modal-overlay">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h3>Mettre à jour: {{ missionToUpdate.title }}</h3>
+                <button @click="closeStatusUpdateModal" class="btn-close">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <p class="mission-status-info">
+                    La mission est actuellement : 
+                    <span :class="missionToUpdate.status">
+                        {{ getStatusLabel(missionToUpdate.status) }}
+                    </span>
+                </p>
+
+                <div class="alert alert-warning" v-if="missionToUpdate.status === 'IN_PROGRESS'">
+                    Veuillez choisir le statut final pour cette mission.
+                </div>
+
+                <div class="form-actions-status">
+                    
+                    <button 
+                    @click="confirmMissionStatusUpdate('COMPLETED')" 
+                    :disabled="statusUpdateLoading"
+                    class="btn btn-success btn-large"
+                    >
+                    <span v-if="statusUpdateLoading" class="loading-spinner"></span>
+                    ✅ Marquer comme Terminé
+                    </button>
+                    
+                    <button 
+                    @click="confirmMissionStatusUpdate('CANCELLED')" 
+                    :disabled="statusUpdateLoading"
+                    class="btn btn-danger btn-large"
+                    >
+                    <span v-if="statusUpdateLoading" class="loading-spinner"></span>
+                    ❌ Annuler la mission
+                    </button>
+                </div>
+
+                <div class="help-text">
+                    *Marquer comme **Terminé** change le statut à **COMPLETED**.
+                    L'**Annulation** la passe à **CANCELLED**.
+                </div>
+                
+            </div>
+        </div>
+    </div>
   </div>
 </template>
+
 <script>
-import { getMissions, createMission, deleteMission, updateMission, getUserMissions } from '@/services/api';
+// Assurez-vous que l'importation de completeOrCancelMission est correcte dans votre fichier d'API
+import {createMission, deleteMission, updateMission, getUserMissions, completeOrCancelMission } from '@/services/api';
 
 export default {
   name: 'MissionsViewClient',
@@ -411,9 +454,13 @@ export default {
       sortBy: 'newest',
       showCreateMissionModal: false,
       creatingMission: false,
-      skillInput: '',
+      
+      // NOUVEAU: Modal de complétion/annulation
+      showStatusUpdateModal: false,
+      missionToUpdate: null, 
+      statusUpdateLoading: false,
 
-      // 🔥 Nouveau : détecte si le client vient d'arriver
+      skillInput: '',
       isNewClient: false,
       
       newMission: {
@@ -517,6 +564,7 @@ export default {
     async loadClientMissions() {
       this.loading = true;
       try {
+        // NOTE: L'API doit retourner applications_count et views, ou les laisser à 0
         const response = await getUserMissions(this.currentUser.id);
         
         if (response.data && response.data.missions) {
@@ -543,7 +591,6 @@ export default {
           
           this.calculateStats();
 
-          // 🔥 Nouveau client : ouvrir le modal création
           if (this.missions.length === 0) {
             this.isNewClient = true;
             this.showCreateMissionModal = true;
@@ -661,7 +708,6 @@ export default {
           this.calculateStats();
           this.closeCreateModal();
 
-          // 🔥 DEVENU client normal
           this.isNewClient = false;
 
           alert('✅ Mission créée avec succès !');
@@ -722,6 +768,64 @@ export default {
     toggleStatusFilter(filterId) {
       this.activeStatusFilter = this.activeStatusFilter === filterId ? null : filterId;
     },
+    
+    // NOUVELLES MÉTHODES POUR LA MISE À JOUR DE STATUT
+    showCompleteOrCancelModal(missionId) {
+      this.missionToUpdate = this.missions.find(m => m.id === missionId);
+      if (this.missionToUpdate) {
+        this.showStatusUpdateModal = true;
+      }
+    },
+    
+    closeStatusUpdateModal() {
+      this.showStatusUpdateModal = false;
+      this.missionToUpdate = null;
+    },
+
+
+async confirmMissionStatusUpdate(newStatus) {
+  if (!this.missionToUpdate || this.statusUpdateLoading) return;
+  
+  this.statusUpdateLoading = true;
+  const missionId = this.missionToUpdate.id;
+  
+  // 🔧 CORRECTION: Utiliser 'COMPLETE' au lieu de 'COMPLETED'
+  const data = { status_cible: newStatus === 'COMPLETED' ? 'COMPLETE' : newStatus };
+  
+  console.log('📤 Données envoyées:', data);
+  
+  try {
+    const response = await completeOrCancelMission(missionId, data);
+    
+    if (response.data && response.data.mission) {
+      // Mettre à jour la mission dans la liste locale 
+      const index = this.missions.findIndex(m => m.id === missionId);
+      if (index !== -1) {
+        this.missions[index].status = response.data.mission.status;
+        this.calculateStats();
+      }
+
+      // 🔧 CORRECTION: Ajuster les labels si nécessaire
+      const statusLabel = newStatus === 'COMPLETED' ? 'COMPLETE' : newStatus;
+      const displayLabel = this.getStatusLabel(statusLabel) || statusLabel;
+      
+      alert(`✅ Mission ${missionId} marquée comme "${displayLabel}" avec succès !`);
+      
+      this.closeStatusUpdateModal();
+    }
+  } catch (error) {
+    console.error('Erreur mise à jour statut mission:', error);
+    
+    const errorMessage = error.response && error.response.data && error.response.data.message 
+                         ? error.response.data.message 
+                         : '❌ Erreur lors de la mise à jour du statut de la mission.';
+                         
+    alert(errorMessage);
+    
+  } finally {
+    this.statusUpdateLoading = false;
+  }
+},    // FIN NOUVELLES MÉTHODES
     
     getStatusLabel(status) {
       const labels = {
@@ -784,341 +888,6 @@ export default {
   }
 };
 </script>
-
-
-
-<!-- <script>
-import { apiService } from '@/services/api';
-
-export default {
-  name: 'MissionsViewClient',
-  props: ['currentUser'],
-  data() {
-    return {
-      missions: [],
-      loading: false,
-      searchQuery: '',
-      activeStatusFilter: null,
-      sortBy: 'newest',
-      showCreateMissionModal: false,
-      creatingMission: false,
-      skillInput: '',
-      
-      // Données pour la nouvelle mission
-      newMission: {
-        title: '',
-        description: '',
-        budget: null,
-        budget_type: 'FIXED',
-        mission_type: 'FREELANCE',
-        duration: '',
-        deadline: '',
-        required_skills: [],
-        featured: false
-      },
-      
-      suggestedSkills: [
-        'React', 'Vue.js', 'Node.js', 'Python', 'JavaScript', 'TypeScript',
-        'UI/UX Design', 'Figma', 'Adobe XD', 'PHP', 'Laravel', 'Symfony',
-        'WordPress', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'React Native',
-        'Flutter', 'Swift', 'Kotlin', 'Java', 'C#', '.NET', 'HTML/CSS',
-        'Tailwind CSS', 'Bootstrap', 'SASS', 'GraphQL', 'REST API', 'MySQL',
-        'Firebase', 'Git', 'GitHub', 'CI/CD', 'Testing', 'Agile', 'Scrum'
-      ],
-      
-      statusFilters: [
-        { id: null, label: 'Toutes' },
-        { id: 'DRAFT', label: 'Brouillons' },
-        { id: 'PUBLISHED', label: 'Publiées' },
-        { id: 'IN_PROGRESS', label: 'En cours' },
-        { id: 'COMPLETED', label: 'Terminées' }
-      ],
-      
-      stats: {
-        totalMissions: 0,
-        totalApplications: 0,
-        activeMissions: 0,
-        completedMissions: 0
-      }
-    };
-  },
-  computed: {
-    filteredMissions() {
-      let filtered = this.missions;
-
-      // Filtre par recherche
-      if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase();
-        filtered = filtered.filter(mission => 
-          mission.title.toLowerCase().includes(query) ||
-          mission.description.toLowerCase().includes(query) ||
-          mission.skills.some(skill => skill.toLowerCase().includes(query))
-        );
-      }
-
-      // Filtre par statut
-      if (this.activeStatusFilter) {
-        filtered = filtered.filter(mission => mission.status === this.activeStatusFilter);
-      }
-
-      return filtered;
-    },
-    
-    sortedMissions() {
-      const missions = [...this.filteredMissions];
-      
-      switch (this.sortBy) {
-        case 'oldest':
-          return missions.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        case 'budget_high':
-          return missions.sort((a, b) => b.budget - a.budget);
-        case 'budget_low':
-          return missions.sort((a, b) => a.budget - b.budget);
-        case 'applications':
-          return missions.sort((a, b) => (b.applications_count || 0) - (a.applications_count || 0));
-        case 'newest':
-        default:
-          return missions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      }
-    },
-    
-    isFormValid() {
-      return this.newMission.title.trim() && 
-             this.newMission.description.trim() && 
-             this.newMission.budget > 0 && 
-             this.newMission.deadline &&
-             this.newMission.required_skills.length > 0;
-    },
-    
-    minDate() {
-      return new Date().toISOString().split('T')[0];
-    }
-  },
-  async mounted() {
-    await this.loadClientMissions();
-    this.calculateStats();
-  },
-  methods: {
-    async loadClientMissions() {
-      this.loading = true;
-      try {
-        // Pour l'instant, on utilise les données mockées
-        // Plus tard, remplacez par: const response = await apiService.getMyMissions();
-        this.missions = [
-          {
-            id: 1,
-            title: "Développement Application React Native",
-            description: "Création d'une application mobile de gestion de tâches avec backend Node.js et base de données MongoDB.",
-            budget: 3000,
-            budgetType: "Forfait",
-            type: "FREELANCE",
-            duration: "3-4 semaines",
-            skills: ["React Native", "Node.js", "MongoDB", "API REST"],
-            status: "PUBLISHED",
-            applications_count: 8,
-            views: 45,
-            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            deadline: "2024-12-15",
-            postedDate: "il y a 2 jours"
-          },
-          {
-            id: 2,
-            title: "Design Site E-commerce Modern",
-            description: "Refonte complète de l'interface utilisateur et expérience client pour une boutique en ligne.",
-            budget: 1500,
-            budgetType: "Forfait",
-            type: "FREELANCE",
-            duration: "2 semaines",
-            skills: ["UI/UX Design", "Figma", "Adobe XD", "Web Design"],
-            status: "DRAFT",
-            applications_count: 0,
-            views: 12,
-            created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            deadline: "2024-12-10",
-            postedDate: "il y a 5 jours"
-          }
-        ];
-        this.calculateStats();
-      } catch (error) {
-        console.error('Erreur chargement missions client:', error);
-        this.$toast.error('Erreur lors du chargement de vos missions');
-      } finally {
-        this.loading = false;
-      }
-    },
-    
-    calculateStats() {
-      this.stats.totalMissions = this.missions.length;
-      this.stats.totalApplications = this.missions.reduce((total, mission) => 
-        total + (mission.applications_count || 0), 0
-      );
-      this.stats.activeMissions = this.missions.filter(m => 
-        m.status === 'PUBLISHED' || m.status === 'IN_PROGRESS'
-      ).length;
-      this.stats.completedMissions = this.missions.filter(m => 
-        m.status === 'COMPLETED'
-      ).length;
-    },
-    
-    showCreateModal() {
-      this.showCreateMissionModal = true;
-    },
-    
-    closeCreateModal() {
-      this.showCreateMissionModal = false;
-      this.resetNewMission();
-    },
-    
-    resetNewMission() {
-      this.newMission = {
-        title: '',
-        description: '',
-        budget: null,
-        budget_type: 'FIXED',
-        mission_type: 'FREELANCE',
-        duration: '',
-        deadline: '',
-        required_skills: [],
-        featured: false
-      };
-      this.skillInput = '';
-    },
-    
-    addSkill() {
-      const skill = this.skillInput.trim();
-      if (skill && !this.newMission.required_skills.includes(skill)) {
-        this.newMission.required_skills.push(skill);
-        this.skillInput = '';
-      }
-    },
-    
-    removeSkill(skill) {
-      this.newMission.required_skills = this.newMission.required_skills.filter(s => s !== skill);
-    },
-    
-    async submitMission() {
-      if (!this.isFormValid || this.creatingMission) return;
-      
-      this.creatingMission = true;
-      try {
-        // Simulation de création - remplacez par l'appel API réel
-        // const response = await apiService.createMission(this.newMission);
-        
-        const newMission = {
-          id: Date.now(), // ID temporaire
-          ...this.newMission,
-          status: 'DRAFT',
-          applications_count: 0,
-          views: 0,
-          created_at: new Date().toISOString(),
-          postedDate: 'À l\'instant',
-          skills: [...this.newMission.required_skills],
-          budgetType: this.newMission.budget_type === 'FIXED' ? 'Forfait' : 'Heure'
-        };
-        
-        this.missions.unshift(newMission);
-        this.calculateStats();
-        this.closeCreateModal();
-        this.$toast.success('Mission créée avec succès !');
-        
-      } catch (error) {
-        console.error('Erreur création mission:', error);
-        this.$toast.error('Erreur lors de la création de la mission');
-      } finally {
-        this.creatingMission = false;
-      }
-    },
-    
-    viewMission(missionId) {
-      this.$router.push(`/missions/${missionId}`);
-    },
-    
-    editMission(missionId) {
-      this.$router.push(`/missions/${missionId}/edit`);
-    },
-    
-    async deleteMission(missionId) {
-      if (!confirm('Êtes-vous sûr de vouloir supprimer cette mission ?')) {
-        return;
-      }
-      
-      try {
-        // await apiService.deleteMission(missionId);
-        this.missions = this.missions.filter(m => m.id !== missionId);
-        this.calculateStats();
-        this.$toast.success('Mission supprimée avec succès');
-      } catch (error) {
-        console.error('Erreur suppression mission:', error);
-        this.$toast.error('Erreur lors de la suppression de la mission');
-      }
-    },
-    
-    viewApplications(missionId) {
-      this.$router.push(`/missions/${missionId}/applications`);
-    },
-    
-    async publishMission(missionId) {
-      try {
-        // await apiService.updateMissionStatus(missionId, 'PUBLISHED');
-        const mission = this.missions.find(m => m.id === missionId);
-        if (mission) {
-          mission.status = 'PUBLISHED';
-        }
-        this.$toast.success('Mission publiée avec succès !');
-      } catch (error) {
-        console.error('Erreur publication mission:', error);
-        this.$toast.error('Erreur lors de la publication de la mission');
-      }
-    },
-    
-    toggleStatusFilter(filterId) {
-      this.activeStatusFilter = this.activeStatusFilter === filterId ? null : filterId;
-    },
-    
-    getStatusLabel(status) {
-      const labels = {
-        DRAFT: 'Brouillon',
-        PUBLISHED: 'Publiée',
-        IN_PROGRESS: 'En cours',
-        COMPLETED: 'Terminée',
-        CANCELLED: 'Annulée'
-      };
-      return labels[status] || status;
-    },
-    
-    getTypeLabel(type) {
-      const labels = {
-        FULL_TIME: 'Temps plein',
-        PART_TIME: 'Temps partiel',
-        FREELANCE: 'Freelance'
-      };
-      return labels[type] || type;
-    },
-    
-    truncateDescription(description) {
-      if (!description) return '';
-      return description.length > 150 
-        ? description.substring(0, 150) + '...' 
-        : description;
-    },
-    
-    formatDate(dateString) {
-      if (!dateString) return 'Non définie';
-      return new Date(dateString).toLocaleDateString('fr-FR');
-    },
-    
-    getDaysLeft(deadline) {
-      if (!deadline) return '?';
-      const today = new Date();
-      const deadlineDate = new Date(deadline);
-      const diffTime = deadlineDate - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays : 0;
-    }
-  }
-};
-</script> -->
-
 <style scoped>
 .missions-client-page {
   max-width: 1200px;

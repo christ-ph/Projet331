@@ -11,6 +11,7 @@
          <router-link to="/missions-client" v-if="currentUser.role === 'CLIENT'">Missions</router-link>
         <router-link to="/freelance-profile" v-if="currentUser.role === 'FREELANCE'">Profil Freelance</router-link>
         <router-link to="/profile">Mon Profil</router-link>
+        <router-link to="/missionsApplications" v-if="currentUser.role === 'CLIENT'">Mes Candidatures</router-link>
         <button @click="handleLogout" class="btn-logout">Déconnexion</button>
       </div>
     </nav>

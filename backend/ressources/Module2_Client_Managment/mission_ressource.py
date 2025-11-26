@@ -169,26 +169,161 @@ class MissionFreelanceAppliedResource(Resource):
         
         return controller.get_missions_freelance_applied_to(freelance_id)
 
-
-class MissionApplicationsSpecifiquesResource(Resource):
+class MissionApplicationsResource(Resource):
+    """
+    Récupère la liste des candidatures pour une mission spécifique.
+    Accessible seulement au client propriétaire de la mission.
+    """
     def get(self, mission_id):
-        """
-        Récupère les candidatures pour une mission donnée
-        Accessible seulement au client propriétaire de la mission
-        """
         authenticated_id = get_authenticated_user_id()
         if not authenticated_id:
             return {"message": "Authentication required"}, 401
         
+        # Le MissionController contient déjà la logique de vérification d'autorisation
+        # dans la fonction get_mission_applications, mais on peut la laisser ici pour plus de clarté
         mission = Mission.query.get(mission_id)
         if not mission:
             return {"message": "Mission not found"}, 404
         
         # Vérifier que c'est le client propriétaire
         if authenticated_id != mission.client_id:
-            return {"message": "Access denied"}, 403
+            return {"message": "Access denied. Only the mission owner can view applications."}, 403
         
         return controller.get_mission_applications(mission_id)
+
+
+class FreelanceActiveMissionsResource(Resource):
+    """
+    Récupère les missions actives (ACCEPTED) pour le freelance authentifié.
+    L'ID du freelance est déduit de l'utilisateur authentifié pour plus de sécurité.
+    """
+    def get(self):
+        authenticated_id = get_authenticated_user_id()
+        if not authenticated_id:
+            return {"message": "Authentication required"}, 401
+        
+        # L'ID du freelance est l'ID authentifié. On utilise l'ID du chemin d'accès
+        # dans l'URL seulement si la route le nécessite, sinon on utilise l'ID authentifié.
+        # Si vous utilisez un paramètre freelance_id dans l'URL, vous devez le comparer ici:
+        # if authenticated_id != freelance_id:
+        #     return {"message": "Access denied"}, 403
+        
+        # On passe directement l'ID de l'utilisateur authentifié au controller
+        return controller.get_active_missions(authenticated_id)
+
+
+class ApplicationStatusUpdateResource(Resource):
+    """
+    Met à jour le statut d'une candidature (Accepté/Refusé).
+    Accessible seulement au client propriétaire de la mission associée.
+    """
+    def put(self, application_id):
+        authenticated_id = get_authenticated_user_id()
+        if not authenticated_id:
+            return {"message": "Authentication required"}, 401
+        
+        parser = reqparse.RequestParser()
+        parser.add_argument('status', 
+                            type=str, 
+                            required=True, 
+                            help='Status (ACCEPTED or REJECTED) is required', 
+                            location='json') # Assurez-vous d'utiliser 'json' ou 'form' selon l'API
+        args = parser.parse_args()
+
+        # Le controller se chargera de vérifier si authenticated_id est bien le client propriétaire
+        return controller.update_application_status(application_id, authenticated_id, args['status'])
+class MissionDetailedResource(Resource):
+    def get(self, mission_id):
+        """
+        GET /api/missions/<int:mission_id>/detailed
+        Vue détaillée avec infos selon l'utilisateur connecté
+        """
+        user_id = get_authenticated_user_id()  # Votre fonction d'authentification
+        return controller.get_mission_detailed_view(mission_id, user_id)
+class MissionCompleteOrCancelResource(Resource):
+    
+    def put(self, mission_id):
+        client_id = get_authenticated_user_id() 
+        
+        if not client_id:
+            return {"message": "Authentification requise."}, 401
+
+        # 🔍 DEBUG COMPLET
+        print("=" * 50)
+        print("DEBUG: Début du traitement PUT /api/missions/{mission_id}/status")
+        print(f"DEBUG: mission_id: {mission_id}")
+        print(f"DEBUG: client_id: {client_id}")
+        print(f"DEBUG: Headers: {dict(request.headers)}")
+        print(f"DEBUG: Content-Type: {request.headers.get('Content-Type')}")
+
+        try:
+            # 1. Vérifier le Content-Type
+            content_type = request.headers.get('Content-Type', '')
+            if not content_type.startswith('application/json'):
+                print("DEBUG: ❌ Mauvais Content-Type")
+                return {"message": "Content-Type doit être application/json"}, 400
+            
+            # 2. Lire les données brutes
+            raw_data = request.get_data(as_text=True)
+            print(f"DEBUG: Raw data reçu: '{raw_data}'")
+            print(f"DEBUG: Longueur des données: {len(raw_data)}")
+            
+            if not raw_data or raw_data.strip() == '':
+                print("DEBUG: ❌ Données brutes vides")
+                return {"message": "Corps JSON vide."}, 400
+            
+            # 3. Parser le JSON
+            import json
+            try:
+                json_data = json.loads(raw_data)
+                print(f"DEBUG: ✅ JSON parsé avec succès: {json_data}")
+                print(f"DEBUG: Type des données parsées: {type(json_data)}")
+            except json.JSONDecodeError as e:
+                print(f"DEBUG: ❌ Erreur JSON: {e}")
+                return {"message": f"JSON invalide: {str(e)}"}, 400
+            
+            # 4. Vérifier que c'est bien un dictionnaire
+            if not isinstance(json_data, dict):
+                print(f"DEBUG: ❌ Type invalide: {type(json_data)}, valeur: {json_data}")
+                return {"message": "Le corps doit être un objet JSON (dictionnaire)"}, 400
+            
+            # 5. Vérifier le champ requis
+            if 'status_cible' not in json_data:
+                print(f"DEBUG: ❌ Champ 'status_cible' manquant. Champs disponibles: {list(json_data.keys())}")
+                return {"message": "Le champ 'status_cible' est requis."}, 400
+                
+            status_cible = json_data['status_cible']
+            print(f"DEBUG: status_cible trouvé: '{status_cible}' (type: {type(status_cible)})")
+            
+            if not isinstance(status_cible, str) or not status_cible.strip():
+                print(f"DEBUG: ❌ status_cible invalide")
+                return {"message": "Le champ 'status_cible' doit être une chaîne non vide."}, 400
+            
+            # 6. Préparer les données pour le contrôleur
+            data = {'status_cible': status_cible.strip().upper()}
+            print(f"DEBUG: ✅ Données préparées pour contrôleur: {data}")
+            
+        except Exception as e:
+            print(f"DEBUG: ❌ Erreur critique lors du parsing: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"message": "Erreur de traitement de la requête."}, 400
+        
+        # 7. Appel du contrôleur
+        print(f"DEBUG: 📞 Appel du contrôleur avec mission_id={mission_id}, client_id={client_id}")
+        try:
+            response, status_code = controller.complete_or_cancel_mission(
+                mission_id=mission_id, 
+                client_id=client_id, 
+                data=data
+            )
+            print(f"DEBUG: ✅ Réponse du contrôleur: {status_code}")
+            return response, status_code
+        except Exception as e:
+            print(f"DEBUG: ❌ Erreur dans le contrôleur: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"message": "Erreur interne du serveur"}, 500
 
 
 
